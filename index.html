@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pareto Breakdown · BSS</title>
+<meta name="description" content="Dashboard Pareto breakdown unit per site, cluster, model, dan komponen. Data dibaca langsung dari Google Sheet.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233F9183'/%3E%3Ctext x='32' y='40' font-family='Segoe UI,Arial,sans-serif' font-size='21' font-weight='800' text-anchor='middle' fill='white'%3EBSS%3C/text%3E%3C/svg%3E">
+<script>try{var t=localStorage.getItem('pareto-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+:root{
+  --bg:#F1F4F3;--surface:#FFFFFF;--surface-2:#F6F8F7;--line:#E2E8E5;--grid:#ECF0EE;--axis:#C7D0CC;
+  --ink:#1B2320;--ink-2:#4A5552;--muted:#7A8783;
+  --teal:#3F9183;--teal-strong:#2C7769;--teal-wash:#E2F0EC;--trivial:#D2DAD7;--cum:#58615E;--ref:#A0692C;
+  --ok:#36A84A;--warn:#C8862B;--bad:#B3261E;
+  --pill:#E6EBE9;--pill-on:#FFFFFF;--shadow:0 1px 2px rgba(16,24,22,.05),0 4px 14px rgba(16,24,22,.05);
+  --hdr:rgba(246,248,247,.9);
+  --h0:#EEF6F4;--h1:#D4EAE5;--h2:#B0D9CF;--h3:#84C1B4;--h4:#5BA797;--h5:#3F9183;--h6:#2B6E62;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0E1412;--surface:#161E1B;--surface-2:#1B2421;--line:#27322E;--grid:#202A27;--axis:#3A4743;
+  --ink:#E6EDEA;--ink-2:#B4C0BC;--muted:#84918D;
+  --teal:#4FA897;--teal-strong:#74C6B4;--teal-wash:#1C322D;--trivial:#3A4643;--cum:#C5CEC9;--ref:#D39C5B;
+  --ok:#4CC160;--warn:#E0A04A;--bad:#E5675E;
+  --pill:#222C29;--pill-on:#33403C;--shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --hdr:rgba(16,22,20,.9);
+  --h0:#19251F;--h1:#1E3530;--h2:#24463F;--h3:#2C5B51;--h4:#367266;--h5:#40897A;--h6:#52A694;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1412;--surface:#161E1B;--surface-2:#1B2421;--line:#27322E;--grid:#202A27;--axis:#3A4743;
+    --ink:#E6EDEA;--ink-2:#B4C0BC;--muted:#84918D;
+    --teal:#4FA897;--teal-strong:#74C6B4;--teal-wash:#1C322D;--trivial:#3A4643;--cum:#C5CEC9;--ref:#D39C5B;
+    --ok:#4CC160;--warn:#E0A04A;--bad:#E5675E;
+    --pill:#222C29;--pill-on:#33403C;--shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+    --hdr:rgba(16,22,20,.9);
+    --h0:#19251F;--h1:#1E3530;--h2:#24463F;--h3:#2C5B51;--h4:#367266;--h5:#40897A;--h6:#52A694;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","Segoe UI Variable Text",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+a{color:var(--teal-strong)}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:0;z-index:30;background:var(--hdr);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1480px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(145deg,#4FA594,#2F7A6C);color:#fff;font-weight:800;font-size:15px;letter-spacing:.3px;display:grid;place-items:center;flex:none;box-shadow:0 2px 6px rgba(47,122,108,.35)}
+.brand h1{font-size:19px;font-weight:700;letter-spacing:-.1px;line-height:1.2}
+.brand p{font-size:13px;color:var(--muted)}
+.ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.period{display:inline-flex;background:var(--pill);border-radius:999px;padding:4px;gap:2px}
+.period button{border:0;background:transparent;padding:7px 16px;border-radius:999px;font-weight:600;font-size:14.5px;color:var(--ink-2);cursor:pointer}
+.period button[aria-pressed="true"]{background:var(--pill-on);color:var(--teal-strong);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.period button:focus-visible,.icon-btn:focus-visible,.btn:focus-visible,.seg button:focus-visible,.lnk:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--muted);white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
+.status.ok i{background:var(--ok)}.status.err i{background:var(--bad)}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--ink-2)}
+.icon-btn:hover{color:var(--teal-strong);border-color:var(--teal)}
+.icon-btn svg{width:18px;height:18px}
+.icon-btn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.icon-btn.spin svg{animation:none}}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1480px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left));display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px;display:grid;gap:14px;min-width:0;align-content:start}
+.card-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 16px}
+.card-head h2{font-size:17px;font-weight:700}
+.card-head p{font-size:13px;color:var(--muted);margin-top:2px}
+.card.flush{padding:0;gap:0}
+.card.flush>.card-head{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
+.card.flush>.body{padding:12px 20px 18px;display:grid;gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+
+/* ---------- state screens ---------- */
+.state{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:40px 24px;text-align:center;display:grid;gap:12px;justify-items:center}
+.state h2{font-size:18px}
+.state p{color:var(--ink-2);max-width:620px}
+.bar-load{width:min(320px,80%);height:6px;border-radius:3px;background:var(--pill);overflow:hidden}
+.bar-load i{display:block;height:100%;width:40%;background:var(--teal);border-radius:3px;animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink)}
+.btn:hover{border-color:var(--teal);color:var(--teal-strong)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-strong);color:#fff}
+.btn.on{background:var(--teal-wash);border-color:var(--teal);color:var(--teal-strong)}
+.btn.sm{padding:5px 11px;font-size:13px;border-radius:8px}
+
+/* ---------- filter bar ---------- */
+.fbar{gap:12px}
+@media (min-width:900px){.fbar{position:sticky;top:76px;z-index:20}}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px}
+@media (min-width:1100px){.fgrid{grid-template-columns:1fr 1.15fr 1.1fr .8fr 1.15fr}}
+.fgrid label,.range-row label{display:grid;gap:4px;font-size:12px;color:var(--ink-2);min-width:0;font-weight:600}
+select,input[type="date"],input[type="search"]{font:inherit;font-weight:400;font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);width:100%;min-width:0}
+select:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+select.on{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+select:disabled{opacity:.55;cursor:not-allowed}
+.range-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.range-row label{width:170px}
+.excl{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.excl-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.excl-lbl{font-size:12px;font-weight:600;color:var(--ink-2);margin-right:4px}
+.excl-panel{display:grid;gap:8px}
+.excl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:2px 14px;max-height:230px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.excl-list label{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:13px;padding:3px 2px;cursor:pointer;min-width:0}
+.excl-list label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.excl-list em{font-style:normal;color:var(--muted);font-size:12px}
+.excl-list input{accent-color:var(--teal)}
+.active{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;font-size:13px;color:var(--ink-2)}
+.active b{color:var(--ink);font-weight:600}
+.active .ex{color:var(--bad);font-weight:600}
+.active .btns{display:flex;gap:8px;flex-wrap:wrap}
+.fbar.compact .fgrid,.fbar.compact .excl,.fbar.compact .range-row{display:none}
+.fbar.compact{padding-block:10px}
+.period-line{font-size:13px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 14px}
+.period-line b{color:var(--ink)}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);min-width:0}
+.kpi .l{font-size:12.5px;color:var(--muted);font-weight:600}
+.kpi .v{font-size:24px;font-weight:700;letter-spacing:-.3px;margin-top:2px;white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--muted)}
+
+/* ---------- segmented ---------- */
+.seg{display:inline-flex;background:var(--pill);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;width:fit-content;max-width:100%}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--pill-on);color:var(--teal-strong);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+
+/* ---------- charts ---------- */
+.chart{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.chart svg{display:block;width:100%;min-width:760px;height:auto}
+.chart.sm svg{min-width:520px}
+.chart text{font-family:inherit;fill:var(--muted);font-size:12px}
+.chart .lbl{fill:var(--ink-2);font-size:11.5px}
+.chart .val{fill:var(--ink-2);font-size:12px;font-weight:600}
+.chart .bar{cursor:pointer;transition:opacity .15s}
+.chart .bar.dim{opacity:.32}
+.chart .hit{fill:transparent}
+.chart .ref-t{fill:var(--ref);font-weight:700;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13.5px;color:var(--ink-2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.legend .ln{width:20px;height:0;border-top:3px solid var(--cum);display:inline-block}
+.legend .rf{width:20px;height:0;border-top:3px solid var(--ref);display:inline-block}
+.legend .rf-t{color:var(--ref)}
+.note{font-size:12.5px;color:var(--muted)}
+
+/* ---------- tables ---------- */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-2);white-space:nowrap;position:sticky;top:0}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;white-space:nowrap}
+td.code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px;white-space:nowrap}
+td .sub{display:block;font-size:12px;color:var(--muted)}
+tr.on td{background:var(--teal-wash)}
+.lnk{all:unset;cursor:pointer;font-weight:600;color:var(--ink);border-bottom:1px dashed var(--muted)}
+.lnk:hover{color:var(--teal-strong);border-bottom-color:var(--teal)}
+.cellbar{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.cellbar i{height:8px;background:var(--teal);border-radius:0 3px 3px 0;display:block;flex:none}
+.heat td.c{text-align:right;white-space:nowrap;min-width:84px}
+.heat th.n{text-align:right}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;color:var(--teal-strong);background:var(--teal-wash);border-radius:6px;padding:0 6px;margin-left:6px;font-family:inherit}
+details>summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--teal-strong);padding:4px 0}
+.ins{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:13.5px;color:var(--ink-2)}
+.ins li{position:relative;padding-left:16px}
+.ins li::before{content:"";position:absolute;left:0;top:.6em;width:7px;height:7px;border-radius:2px;background:var(--teal)}
+.ins b{color:var(--ink)}
+.notes{margin:0;padding-left:18px;display:grid;align-content:start;gap:6px;font-size:13px;color:var(--ink-2)}
+
+/* ---------- tooltip & footer ---------- */
+#tip{position:fixed;z-index:50;pointer-events:none;opacity:0;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:10px;padding:8px 10px;font-size:12.5px;min-width:170px;max-width:300px;transition:opacity .1s}
+#tip .h{font-weight:700;margin-bottom:4px}
+#tip .r{display:flex;justify-content:space-between;gap:14px}
+#tip .r span:first-child{color:var(--muted)}
+footer{max-width:1480px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left));font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+@media (max-width:640px){
+  .brand h1{font-size:17px}.logo{width:40px;height:40px;font-size:14px}
+  .period button{padding:6px 11px;font-size:13.5px}
+  .kpi .v{font-size:21px}
+  .card{padding:16px}
+  .card.flush>.card-head{padding:16px 16px 12px}.card.flush>.body{padding:12px 16px 16px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">BSS</div>
+      <div><h1>Pareto Breakdown</h1><p>PT Bina Sarana Sukses</p></div>
+    </div>
+    <div class="ctl">
+      <div class="period" role="group" aria-label="Periode">
+        <button type="button" data-p="ytd" aria-pressed="true">YTD</button>
+        <button type="button" data-p="mtd" aria-pressed="false">MTD</button>
+        <button type="button" data-p="wtd" aria-pressed="false">WTD</button>
+        <button type="button" data-p="custom" aria-pressed="false">Custom</button>
+      </div>
+      <span class="status" id="status" role="status"><i></i><span id="status-txt">Memuat…</span></span>
+      <button type="button" class="icon-btn" id="btn-refresh" title="Muat ulang data" aria-label="Muat ulang data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+      <button type="button" class="icon-btn" id="btn-theme" title="Ganti mode terang/gelap" aria-label="Ganti mode terang/gelap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="state" id="st-load">
+    <h2>Memuat data breakdown…</h2>
+    <div class="bar-load"><i></i></div>
+    <p class="small muted" id="st-load-txt">Mengambil data dari Google Sheet.</p>
+  </div>
+  <div class="state" id="st-err" hidden>
+    <h2 id="st-err-h">Data belum bisa dimuat</h2>
+    <p id="st-err-txt"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button type="button" class="btn primary" id="btn-retry">Coba lagi</button><button type="button" class="btn" id="btn-file">Buka file CSV / Excel</button></div>
+    <p class="small muted">File lokal hanya dibaca di browser Anda dan tidak diunggah ke mana pun.</p>
+  </div>
+
+  <div id="app" hidden style="display:grid;gap:16px">
+    <section class="card fbar" id="fbar" aria-label="Filter">
+      <div class="range-row" id="range-row" hidden>
+        <label>Dari tanggal<input type="date" id="d-from"></label>
+        <label>Sampai tanggal<input type="date" id="d-to"></label>
+      </div>
+      <div class="fgrid">
+        <label>Site<select id="f-site"></select></label>
+        <label>Cluster<select id="f-cl"></select></label>
+        <label>Model<select id="f-model"></select></label>
+        <label>Generasi RTH100<select id="f-gen"></select></label>
+        <label>Major component<select id="f-comp"></select></label>
+      </div>
+      <div class="excl">
+        <div class="excl-head">
+          <span class="excl-lbl">Kecualikan sub-komponen</span>
+          <button type="button" class="btn sm" id="ex-preset">Kecualikan Tyre &amp; VITA</button>
+          <button type="button" class="btn sm" id="ex-toggle" aria-expanded="false" aria-controls="ex-panel">Pilih sub-komponen…</button>
+          <button type="button" class="btn sm" id="ex-clear">Hapus pengecualian</button>
+        </div>
+        <div class="excl-panel" id="ex-panel" hidden>
+          <input type="search" id="ex-q" placeholder="Cari sub-komponen, mis. vita" aria-label="Cari sub-komponen">
+          <div class="excl-list" id="ex-list" role="group" aria-label="Daftar sub-komponen"></div>
+        </div>
+      </div>
+      <div class="active">
+        <span id="f-summary"></span>
+        <span class="btns"><button type="button" class="btn sm" id="btn-compact" aria-expanded="true" aria-controls="fbar">Sembunyikan filter</button><button type="button" class="btn sm" id="btn-reset">Reset filter</button></span>
+      </div>
+    </section>
+
+    <div class="period-line" id="period-line"></div>
+    <section class="kpis" id="kpis" aria-label="Ringkasan"></section>
+    <ul class="ins card" id="ins" style="padding:14px 20px 14px 36px"></ul>
+
+    <section class="card flush">
+      <div class="card-head">
+        <div><h2>Pareto Major Component</h2><p id="pc-sub">Klik batang untuk menyaring sub-komponen di bawah.</p></div>
+        <div class="seg" role="group" aria-label="Ukuran pareto komponen" id="pc-seg"><button type="button" data-m="n" aria-pressed="true">Frekuensi</button><button type="button" data-m="dt" aria-pressed="false">Downtime</button></div>
+      </div>
+      <div class="body">
+        <div class="chart" id="pc-chart"></div>
+        <div class="legend"><span><i class="sw" style="background:var(--teal)"></i>Vital few (kumulatif ≤ 80%)</span><span><i class="sw" style="background:var(--trivial)"></i>Trivial many</span><span><i class="ln"></i>% kumulatif</span><span class="rf-t"><i class="rf"></i>Garis 80%</span></div>
+      </div>
+    </section>
+
+    <section class="card flush">
+      <div class="card-head">
+        <div><h2>Drill-down — Sub-Component</h2><p id="ps-sub">Semua major component. Klik salah satu batang di atas untuk menyaring.</p></div>
+        <div class="seg" role="group" aria-label="Ukuran pareto sub-komponen" id="ps-seg"><button type="button" data-m="n" aria-pressed="true">Frekuensi</button><button type="button" data-m="dt" aria-pressed="false">Downtime</button></div>
+      </div>
+      <div class="body">
+        <div class="chart" id="ps-chart"></div>
+        <div class="legend"><span><i class="sw" style="background:var(--teal)"></i>Vital few (kumulatif ≤ 80%)</span><span><i class="sw" style="background:var(--trivial)"></i>Trivial many</span><span><i class="ln"></i>% kumulatif</span><span class="rf-t"><i class="rf"></i>Garis 80%</span></div>
+        <p class="note" id="ps-note"></p>
+        <details><summary>Tabel lengkap sub-komponen (30 teratas)</summary><div class="tbl" id="ps-table" style="margin-top:8px"></div></details>
+      </div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-head"><div><h2>Tren B/D</h2><p id="tr-sub"></p></div></div>
+        <div class="chart sm" id="tr-chart"></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Perbandingan site</h2><p>Mengikuti filter selain site. Klik site untuk memfilter.</p></div></div>
+        <div class="tbl" id="site-tbl"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head"><div><h2>Perbandingan model</h2><p>Mengikuti filter site, cluster, generasi, komponen, dan periode. Klik nama model untuk memfilter.</p></div></div>
+      <div class="tbl" id="model-tbl"></div>
+      <div><button type="button" class="btn sm" id="model-more" hidden></button></div>
+    </section>
+
+    <section class="card" id="gen-card" hidden>
+      <div class="card-head"><div><h2>Perbandingan generasi RTH100</h2><p>Mengikuti filter site, cluster, komponen, pengecualian, dan periode. Klik generasi untuk memfilter.</p></div></div>
+      <ul class="ins" id="gen-ins"></ul>
+      <div class="tbl" id="gen-tbl"></div>
+      <h3 id="gen-prof-h" style="font-size:15px">Profil komponen per generasi</h3>
+      <div class="tbl heat" id="gen-prof"></div>
+      <p class="note">B/D per unit-bulan dihitung dari bulan yang mencatat B/D. Generasi yang lebih baru punya riwayat lebih pendek (lihat kolom bulan tercatat per unit), jadi bandingkan terutama lewat rate dan jam per B/D. Daftar unit per generasi diatur di config.js.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><div><h2 id="prof-h">Profil komponen per model</h2><p>Persentase dari B/D masing-masing model</p></div></div>
+      <div class="tbl heat" id="prof-tbl"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><div><h2>Unit bad actor</h2><p>10 unit teratas sesuai filter</p></div>
+        <div class="seg" role="group" aria-label="Urutan bad actor" id="bad-seg"><button type="button" data-m="n" aria-pressed="true">Frekuensi</button><button type="button" data-m="dt" aria-pressed="false">Downtime</button></div></div>
+      <div class="tbl" id="bad-tbl"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><div><h2>Definisi dan catatan data</h2><p id="dq-sub"></p></div></div>
+      <div class="grid2">
+        <ul class="notes">
+          <li><b>B/D</b>: satu baris di sheet = satu kejadian breakdown.</li>
+          <li><b>Downtime</b>: dari tanggal + jam B/D sampai tanggal + jam SPK close. Kolom DURATION dipakai bila tanggal close tidak konsisten.</li>
+          <li><b>B/D per unit-bulan</b>: jumlah B/D dibagi jumlah kombinasi unit × bulan yang mencatat B/D (pendekatan populasi, karena sheet tidak memuat daftar unit aktif).</li>
+          <li><b>Jam per B/D</b>: rata-rata downtime, hanya dari B/D yang punya durasi valid.</li>
+          <li><b>Repeat</b>: B/D pada unit, komponen, dan sub-komponen yang sama dalam ≤<span class="cfg-rep">7</span> hari dari B/D sebelumnya.</li>
+          <li><b>Vital few</b>: batang yang persentase kumulatifnya masih ≤ 80%.</li>
+          <li><b>Periode</b>: YTD = 1 Januari s.d. tanggal B/D terakhir di data; MTD = awal bulan tanggal terakhir tersebut; WTD = Senin pada minggu tersebut.</li>
+          <li><b>Pengecualian sub-komponen</b> membuang baris dari semua angka di halaman ini, termasuk KPI dan bad actor.</li>
+        </ul>
+        <ul class="notes" id="dq"></ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <span id="ft-src">Sumber: Google Sheet</span>
+  <span><button type="button" class="lnk" id="btn-file2" style="font-weight:400">Buka file lokal (CSV/Excel)</button></span>
+</footer>
+<div id="tip" role="tooltip"></div>
+<input type="file" id="file-in" accept=".csv,.xlsx,.xls,text/csv" hidden>
+
+<script src="config.js"></script>
+<script src="vendor/papaparse.min.js"></script>
+<script>
+(function(){
+'use strict';
+/* ================= config ================= */
+const DEF={SHEET_CSV_URL:'',DATE_ORDER:'AUTO',REFRESH_MINUTES:0,
+  COLUMNS:{unit:['IDUNIT'],date:['TANGGAL B/D'],time:['JAM B/D'],closeDate:['TGL SPK CLOSE'],closeTime:['SPK CLOSE'],duration:['DURATION'],comp:['MAJOR COMPONENT'],sub:['SUB-COMPONENT'],cluster:['CLUSTER'],model:['MODEL'],site:['SITE'],month:['MONTH'],year:['YEAR']},
+  CLUSTER_MAP:{},MODEL_DISPLAY:{},RTH100_MODEL_KEY:'RTH100',RTH100_GEN:{},EXCLUDE_PRESET:['^TYRE & RIMS?$','^TYRE & FITTING PARTS$','^VITA'],
+  SUB_REPLACE:{PIPPING:'PIPING',PATRS:'PARTS'},SITE_ORDER:[],LONG_BD_HOURS:72,REPEAT_DAYS:7};
+const CFG=Object.assign({},DEF,window.PARETO_CONFIG||{});
+CFG.COLUMNS=Object.assign({},DEF.COLUMNS,CFG.COLUMNS||{});
+const REQ=['unit','date','comp','sub','model','site'];
+const COLNAME={unit:'ID unit',date:'Tanggal B/D',comp:'Major component',sub:'Sub-component',model:'Model',site:'Site'};
+const TT='TIDAK TERISI', CSK=100000;
+const $=id=>document.getElementById(id);
+
+/* ================= format helpers ================= */
+const nf0=new Intl.NumberFormat('id-ID',{maximumFractionDigits:0});
+const nf1=new Intl.NumberFormat('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1});
+const f0=v=>v==null||!isFinite(v)?'–':nf0.format(Math.round(v));
+const f1=v=>v==null||!isFinite(v)?'–':nf1.format(v);
+const pct=(a,b)=>b?f1(a/b*100)+'%':'–';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const title=s=>String(s).toLowerCase().replace(/(^|[\s(\/&·,.-])([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+const nice=s=>title(s).replace(/\bAc\b/g,'AC').replace(/\bVita\b/g,'VITA').replace(/\bVad\b/g,'VAD').replace(/\bT\/m\b/g,'T/M').replace(/\bU\/c\b/g,'U/C').replace('Wirng','Wiring').replace('Resevoir','Reservoir');
+const clShort=c=>c.replace('MINING - ','Mining · ').replace('HAULING - ','Hauling · ');
+const MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const ymOf=d=>{const x=new Date(d*864e5);return x.getUTCFullYear()*12+x.getUTCMonth()};
+const fd=d=>{const x=new Date(d*864e5);return `${x.getUTCDate()} ${MON[x.getUTCMonth()]} ${x.getUTCFullYear()}`};
+const fdShort=d=>{const x=new Date(d*864e5);return `${x.getUTCDate()} ${MON[x.getUTCMonth()]}`};
+const iso=d=>new Date(d*864e5).toISOString().slice(0,10);
+const dispFix=s=>String(s).replace(/\bWIRNG\b/g,'WIRING').replace(/\bRESEVOIR\b/g,'RESERVOIR');
+const SHORT={'UNDERCARRIAGE':'U/C','OPTIONAL ACCESSORIES':'Opt. Acc.','AXLE & TRAVEL DRIVE':'Axle','ATTACHMENT & WORK EQUIPMENT':'Attachment','CABIN & CHASSIS':'Cabin','TRANSMISSION':'T/M','ELECTRICAL':'Electrical'};
+function niceMax(v){if(!(v>0))return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=4?4:n<=5?5:n<=8?8:10)*p}
+const tr=(k,v)=>`<div class="r"><span>${k}</span><span>${v}</span></div>`;
+
+/* ================= tooltip ================= */
+const tip=$('tip');
+function moveTip(e){const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y+h>innerHeight-8)y=e.clientY-h-14;tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px'}
+function bindTips(root){root.querySelectorAll('[data-tip]').forEach(el=>{el.addEventListener('mouseenter',e=>{tip.innerHTML=el.dataset.tip;tip.style.opacity=1;moveTip(e)});el.addEventListener('mousemove',moveTip);el.addEventListener('mouseleave',()=>{tip.style.opacity=0})})}
+
+/* ================= parsers ================= */
+const MONTHS={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,MEI:5,JUN:6,JUL:7,AUG:8,AGU:8,AGT:8,SEP:9,OCT:10,OKT:10,NOV:11,NOP:11,DEC:12,DES:12};
+function ymd(y,m,d){if(!(y>=1990&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31))return NaN;const t=Date.UTC(y,m-1,d);return new Date(t).getUTCDate()===d?t/864e5:NaN}
+function parseDate(v,order){
+  if(v==null||v==='')return NaN;
+  if(typeof v==='number')return v>20000&&v<80000?Math.floor(v)-25569:NaN;
+  if(v instanceof Date)return isNaN(v)?NaN:ymd(v.getFullYear(),v.getMonth()+1,v.getDate());
+  const s=String(v).trim();if(!s)return NaN;let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return ymd(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?!\d)/))){let y=+m[3];if(y<100)y+=2000;return order==='MDY'?ymd(y,+m[1],+m[2]):ymd(y,+m[2],+m[1])}
+  if((m=s.match(/^(\d{1,2})[\s\-\/]+([A-Za-z]{3})[A-Za-z]*[\s\-\/,]+(\d{2,4})/))){const mo=MONTHS[m[2].toUpperCase()];let y=+m[3];if(y<100)y+=2000;return mo?ymd(y,mo,+m[1]):NaN}
+  if((m=s.match(/^([A-Za-z]{3})[A-Za-z]*\s+(\d{1,2}),?\s+(\d{4})/))){const mo=MONTHS[m[1].toUpperCase()];return mo?ymd(+m[3],mo,+m[2]):NaN}
+  if(/^\d{5}(\.\d+)?$/.test(s))return parseDate(+s,order);
+  return NaN;
+}
+function parseTime(v){ // jam dalam satu hari → jam desimal
+  if(v==null||v==='')return NaN;
+  if(typeof v==='number'){if(v>=0&&v<1)return v*24;if(v>=1&&v<80000)return (v%1)*24;return NaN}
+  if(v instanceof Date)return v.getHours()+v.getMinutes()/60+v.getSeconds()/3600;
+  const s=String(v).trim();
+  const m=s.match(/(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*([AaPp]\.?[Mm]\.?)?$/);
+  if(m){let h=+m[1];const mi=+m[2],se=+(m[3]||0);if(m[4]){const p=m[4][0].toUpperCase();if(p==='P'&&h<12)h+=12;if(p==='A'&&h===12)h=0}if(h>23||mi>59||se>59)return NaN;return h+mi/60+se/3600}
+  if(/^0?\.\d+$/.test(s))return (+s)*24;
+  return NaN;
+}
+function parseDur(v){ // durasi → jam desimal
+  if(v==null||v==='')return NaN;
+  if(typeof v==='number')return v>=0&&v<1?v*24:NaN;
+  if(v instanceof Date)return v.getHours()+v.getMinutes()/60+v.getSeconds()/3600;
+  const m=String(v).trim().match(/^(\d+)[:.](\d{2})(?:[:.](\d{2}))?$/);
+  return m?(+m[1])+(+m[2])/60+(+(m[3]||0))/3600:NaN;
+}
+const ERRV=/^#(N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NUM!|NULL!|ERROR!)/i;
+const clean=s=>{if(s==null)return '';const v=String(s).replace(/[\u200B-\u200F\u2060\uFEFF]/g,'').replace(/\s+/g,' ').trim();return ERRV.test(v)?'':v};
+let SUBFIX=[];
+function normSub(x){
+  let s=clean(x).toUpperCase();if(!s||s==='-'||s==='0')return TT;
+  s=s.split(' AND ').join(' & ');for(const [a,b] of SUBFIX)s=s.split(a).join(b);
+  return s.replace(/\s*\/\s*/g,' / ').replace(/\s+/g,' ').trim();
+}
+function normComp(x){
+  let s=clean(x).toUpperCase();if(!s||s==='-')return TT;
+  s=s.split(' SYSTEM').join('').split(' AND ').join(' & ').split(' / ').join(' & ');
+  if(s.startsWith('OPTIONAL'))return 'OPTIONAL ACCESSORIES';
+  if(s.startsWith('VITA'))return 'VITA';
+  if(s.includes('KALIBRASI'))return 'LAIN-LAIN';
+  return s;
+}
+
+/* ================= ingest ================= */
+let DB=null;
+function findHeader(rows){
+  const al={};for(const k in CFG.COLUMNS)al[k]=[].concat(CFG.COLUMNS[k]).map(x=>clean(x).toUpperCase());
+  let best=null;
+  for(let r=0;r<Math.min(rows.length,25);r++){
+    const H=(rows[r]||[]).map(c=>clean(c).toUpperCase());const idx={};
+    for(const k in al){for(const a of al[k]){const j=H.indexOf(a);if(j>=0){idx[k]=j;break}}}
+    const hit=REQ.filter(k=>idx[k]!=null).length;
+    if(!best||hit>best.hit)best={r,idx,hit};
+    if(hit===REQ.length)return best;
+  }
+  const miss=best?REQ.filter(k=>best.idx[k]==null).map(k=>COLNAME[k]):REQ.map(k=>COLNAME[k]);
+  throw new Error('Kolom wajib tidak ditemukan: '+miss.join(', ')+'. Cek nama kolom di sheet atau sesuaikan bagian COLUMNS di config.js.');
+}
+function ingest(rows,src){
+  const h=findHeader(rows),I=h.idx;
+  let order=String(CFG.DATE_ORDER||'AUTO').toUpperCase();
+  if(order==='AUTO'){let a=0,b=0,c=0;for(let r=h.r+1;r<rows.length&&c<8000;r++){const v=rows[r]&&rows[r][I.date];if(typeof v!=='string')continue;const m=v.trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-]\d{2,4}/);if(!m)continue;c++;if(+m[1]>12)a++;else if(+m[2]>12)b++}order=b>a?'MDY':'DMY'}
+  const CLMAP={};for(const k in CFG.CLUSTER_MAP)CLMAP[clean(k).toUpperCase()]=clean(CFG.CLUSTER_MAP[k]).toUpperCase();
+  const genNames=['–',...Object.keys(CFG.RTH100_GEN||{}),'Belum dipetakan'],GEN_UN=genNames.length-1;
+  const genOf=new Map();Object.keys(CFG.RTH100_GEN||{}).forEach((g,i)=>[].concat(CFG.RTH100_GEN[g]).forEach(u=>genOf.set(clean(u).toUpperCase(),i+1)));
+  SUBFIX=Object.entries(CFG.SUB_REPLACE||{}).map(([a,b])=>[String(a).toUpperCase(),String(b).toUpperCase()]);
+  const RKEY=clean(CFG.RTH100_MODEL_KEY).toUpperCase().replace(/[\s-]/g,'');
+  const mk=()=>({m:new Map(),a:[]});
+  const D={site:mk(),cl:mk(),model:mk(),comp:mk(),sub:mk(),unit:mk()};
+  const id=(d,v)=>{let i=d.m.get(v);if(i===undefined){i=d.a.length;d.m.set(v,i);d.a.push(v)}return i};
+  id(D.unit,'');id(D.sub,TT);
+  const disp=new Map();
+  const st={read:Math.max(0,rows.length-h.r-1),blank:0,badDate:0,approx:0,noDur:0,future:0,unmapped:new Set(),order,header:h.r+1};
+  const C={day:[],dt:[],site:[],cl:[],model:[],comp:[],sub:[],unit:[],gen:[]};
+  const today=todayDay();
+  for(let r=h.r+1;r<rows.length;r++){
+    const row=rows[r];if(!row||!row.length){st.blank++;continue}
+    const g=k=>I[k]==null?null:row[I[k]];
+    const uRaw=clean(g('unit')),cRaw=clean(g('cluster'));
+    if(!uRaw&&!cRaw){st.blank++;continue}
+    let day=parseDate(g('date'),order),approx=false;
+    if(isNaN(day)){const mo=MONTHS[clean(g('month')).toUpperCase().slice(0,3)],y=parseInt(clean(g('year')),10);if(mo&&y){day=ymd(y,mo,1);approx=true}}
+    if(isNaN(day)){st.badDate++;continue}
+    if(approx)st.approx++;
+    if(day>today)st.future++;
+    const tb=parseTime(g('time')),cd=parseDate(g('closeDate'),order),ct=parseTime(g('closeTime'));
+    const calc=(!approx&&!isNaN(tb)&&!isNaN(cd)&&!isNaN(ct))?(cd*24+ct)-(day*24+tb):NaN;
+    const dur=parseDur(g('duration'));
+    let dt=NaN;
+    if(!isNaN(calc)&&!isNaN(dur)&&calc>=0&&Math.abs((calc%24)-(dur%24))<=0.02)dt=calc;
+    else if(!isNaN(dur)&&dur>=0)dt=dur;
+    else if(!isNaN(calc)&&calc>=0&&calc<=240)dt=calc;
+    if(isNaN(dt))st.noDur++;
+    const unit=uRaw.toUpperCase();
+    let cl=cRaw.toUpperCase();cl=CLMAP[cl]||cl||TT;
+    const site=clean(g('site')).toUpperCase()||TT;
+    const mRaw=clean(g('model')).toUpperCase().split('(TG)').join('').trim();
+    let key=mRaw.replace(/[\s-]/g,'');if(!key||key==='NAN'||key==='NONE'||key==='-')key=TT;
+    let dm=disp.get(key);if(!dm){dm=new Map();disp.set(key,dm)}dm.set(mRaw,(dm.get(mRaw)||0)+1);
+    const sub=normSub(g('sub'));
+    let gen=0;if(key===RKEY){gen=genOf.get(unit)||GEN_UN;if(gen===GEN_UN&&unit)st.unmapped.add(unit)}
+    C.day.push(day);C.dt.push(dt);C.site.push(id(D.site,site));C.cl.push(id(D.cl,cl));C.model.push(id(D.model,key));
+    C.comp.push(id(D.comp,normComp(g('comp'))));C.sub.push(id(D.sub,sub));C.unit.push(id(D.unit,unit));C.gen.push(gen);
+  }
+  const n=C.day.length;if(!n)throw new Error('Sheet terbaca, tetapi tidak ada baris B/D yang valid.');
+  const modelNames=D.model.a.map(k=>{if(k===TT)return TT;if(CFG.MODEL_DISPLAY&&CFG.MODEL_DISPLAY[k])return CFG.MODEL_DISPLAY[k];let b='',bn=-1;for(const [s,c] of disp.get(k)){if(c>bn){b=s;bn=c}}return b||k});
+  const db={n,src,order,loadedAt:new Date(),stats:st,genNames,GEN_UN,
+    day:Int32Array.from(C.day),dt:Float64Array.from(C.dt),site:Int32Array.from(C.site),cl:Int32Array.from(C.cl),model:Int32Array.from(C.model),
+    comp:Int32Array.from(C.comp),sub:Int32Array.from(C.sub),unit:Int32Array.from(C.unit),gen:Int32Array.from(C.gen),
+    dict:{site:D.site.a,cl:D.cl.a,model:modelNames,comp:D.comp.a,sub:D.sub.a,unit:D.unit.a.map(u=>u||TT),gen:genNames},
+    UNK:0,SUB_TT:0,ym:new Int32Array(n),rb:new Uint8Array(n),rp:new Uint8Array(n)};
+  let mn=Infinity,mx=-Infinity,mxv=-Infinity;
+  for(let i=0;i<n;i++){const d=db.day[i];db.ym[i]=ymOf(d);if(d<mn)mn=d;if(d>mx)mx=d;if(d<=today&&d>mxv)mxv=d;if(db.sub[i]!==db.SUB_TT)db.rb[i]=1}
+  db.minDay=mn;db.maxDay=mx;db.asOf=mxv>-Infinity?mxv:mx;
+  // repeat: unit + komponen + sub-komponen sama dalam ≤ REPEAT_DAYS hari
+  const idx=[];for(let i=0;i<n;i++)if(db.rb[i]&&db.unit[i]!==db.UNK)idx.push(i);
+  idx.sort((a,b)=>db.unit[a]-db.unit[b]||db.comp[a]-db.comp[b]||db.sub[a]-db.sub[b]||db.day[a]-db.day[b]);
+  for(let j=1;j<idx.length;j++){const a=idx[j-1],b=idx[j];if(db.unit[a]===db.unit[b]&&db.comp[a]===db.comp[b]&&db.sub[a]===db.sub[b]&&db.day[b]-db.day[a]<=CFG.REPEAT_DAYS)db.rp[b]=1}
+  return db;
+}
+
+/* ================= state ================= */
+const KEYS=['site','cl','model','gen','comp'];
+const ALL={site:'Semua site',cl:'Semua cluster',model:'Semua model',gen:'Semua',comp:'Semua komponen'};
+const ST={F:{site:-1,cl:-1,model:-1,gen:-1,comp:-1},EX:new Set(),period:'ytd',cFrom:null,cTo:null,mC:'n',mS:'n',mB:'n',allModels:false,range:null};
+let PIDX=new Int32Array(0);
+const sel={};KEYS.forEach(k=>sel[k]=$('f-'+k));
+function todayDay(){const t=new Date();return Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())/864e5}
+function nm(k,i){const v=DB.dict[k][i];return k==='cl'?clShort(v):k==='comp'?title(v):v}
+const subName=key=>nice(DB.dict.sub[key%CSK]);
+const shortComp=c=>SHORT[DB.dict.comp[c]]||title(DB.dict.comp[c]);
+const siteRank=s=>{const i=(CFG.SITE_ORDER||[]).indexOf(s);return i<0?99:i};
+function presetSubs(){const re=(CFG.EXCLUDE_PRESET||[]).map(p=>new RegExp(p));return DB.dict.sub.map((s,i)=>[s,i]).filter(([s])=>re.some(r=>r.test(s))).map(x=>x[1])}
+function exGroups(){const names=[...ST.EX].map(i=>DB.dict.sub[i]);const v=names.filter(x=>/^VITA/.test(x)),rest=names.filter(x=>!/^VITA/.test(x)).sort();const o=rest.map(nice);if(v.length)o.push(v.length>1?`VITA (${v.length} jenis)`:nice(v[0]));return o}
+
+function computePeriod(){
+  const asOf=DB.asOf,x=new Date(asOf*864e5),y=x.getUTCFullYear(),ytdFrom=Date.UTC(y,0,1)/864e5;
+  let from,to=asOf;
+  if(ST.period==='ytd')from=ytdFrom;
+  else if(ST.period==='mtd')from=Date.UTC(y,x.getUTCMonth(),1)/864e5;
+  else if(ST.period==='wtd')from=asOf-((x.getUTCDay()+6)%7);
+  else{from=ST.cFrom!=null?ST.cFrom:ytdFrom;to=ST.cTo!=null?ST.cTo:asOf;if(from>to){const t=from;from=to;to=t}}
+  ST.range={from,to};
+  const o=[];for(let i=0;i<DB.n;i++){const d=DB.day[i];if(d>=from&&d<=to)o.push(i)}
+  PIDX=Int32Array.from(o);
+  const df=$('d-from'),dto=$('d-to');df.min=dto.min=iso(DB.minDay);df.max=dto.max=iso(DB.maxDay);df.value=iso(from);dto.value=iso(to);
+  $('range-row').hidden=ST.period!=='custom';
+}
+function filt(skip){
+  const F=ST.F,ex=ST.EX.size>0&&skip!=='excl',P=PIDX,D=DB,o=[];
+  const s=skip!=='site'?F.site:-1,c=skip!=='cl'?F.cl:-1,m=skip!=='model'?F.model:-1,g=skip!=='gen'?F.gen:-1,p=skip!=='comp'?F.comp:-1;
+  for(let j=0;j<P.length;j++){const i=P[j];
+    if(ex&&ST.EX.has(D.sub[i]))continue;
+    if(s>=0&&D.site[i]!==s)continue;if(c>=0&&D.cl[i]!==c)continue;if(m>=0&&D.model[i]!==m)continue;
+    if(g>=0&&D.gen[i]!==g)continue;if(p>=0&&D.comp[i]!==p)continue;
+    o.push(i)}
+  return o;
+}
+function countBy(a,k){const m=new Map(),A=DB[k];for(const i of a){const v=A[i];m.set(v,(m.get(v)||0)+1)}return m}
+function group(a,key,opt={}){
+  const g=new Map(),D=DB,L=CFG.LONG_BD_HOURS;
+  for(const i of a){
+    const v=key==='cs'?D.comp[i]*CSK+D.sub[i]:D[key][i];
+    let o=g.get(v);
+    if(!o){o={k:v,n:0,dt:0,nv:0,lg:0,rb:0,rp:0,u:new Set(),um:new Set(),x:opt.x?new Map():null,y:opt.y?new Map():null,site:D.site[i],model:D.model[i],gen:D.gen[i]};g.set(v,o)}
+    o.n++;const d=D.dt[i];if(d===d){o.dt+=d;o.nv++;if(d>L)o.lg+=d}
+    if(D.rb[i]){o.rb++;o.rp+=D.rp[i]}
+    const u=D.unit[i];if(u!==D.UNK){o.u.add(u);o.um.add(u*CSK+D.ym[i])}
+    if(opt.x){const xv=opt.x==='cs'?D.comp[i]*CSK+D.sub[i]:D[opt.x][i];o.x.set(xv,(o.x.get(xv)||0)+1)}
+    if(opt.y){const yv=opt.y==='cs'?D.comp[i]*CSK+D.sub[i]:D[opt.y][i];o.y.set(yv,(o.y.get(yv)||0)+1)}
+  }
+  return [...g.values()];
+}
+const top=m=>{let b=null,bn=-1;if(m)for(const [k,v] of m){if(v>bn){b=k;bn=v}}return [b,bn]};
+const mttr=o=>o.nv?o.dt/o.nv:NaN, rate=o=>o.um.size?o.n/o.um.size:NaN;
+
+/* ================= filters UI ================= */
+function fillSelects(){
+  for(let pass=0;pass<3;pass++){
+    let changed=false;const res={};
+    KEYS.forEach(k=>{const a=filt(k),cnt=countBy(a,k);res[k]={a,cnt};if(ST.F[k]>=0&&!cnt.has(ST.F[k])){ST.F[k]=-1;changed=true}});
+    if(changed)continue;
+    KEYS.forEach(k=>{
+      const {a,cnt}=res[k];let o=[...cnt.entries()];const el=sel[k];
+      if(k==='gen'){
+        o=o.filter(([v])=>v>0).sort((x,y)=>x[0]-y[0]);const nr=o.reduce((s,x)=>s+x[1],0);
+        el.innerHTML=nr?`<option value="-1">Semua (${f0(nr)})</option>`+o.map(([v,c])=>`<option value="${v}">${esc(DB.dict.gen[v])} (${f0(c)})</option>`).join(''):'<option value="-1">Tidak ada RTH100</option>';
+        el.disabled=!nr;
+      }else{
+        if(k==='site')o.sort((x,y)=>siteRank(DB.dict.site[x[0]])-siteRank(DB.dict.site[y[0]])||y[1]-x[1]);else o.sort((x,y)=>y[1]-x[1]);
+        el.innerHTML=`<option value="-1">${ALL[k]} (${f0(a.length)})</option>`+o.map(([v,c])=>`<option value="${v}">${esc(nm(k,v))} (${f0(c)})</option>`).join('');
+      }
+      el.value=String(ST.F[k]);el.classList.toggle('on',ST.F[k]>=0);
+    });
+    return;
+  }
+}
+function summary(){
+  const F=ST.F,p=[];
+  KEYS.forEach(k=>{if(k==='gen'){if(F.gen>=0)p.push(`<b>${esc((F.model>=0?'':'RTH100 ')+DB.dict.gen[F.gen])}</b>`);return}p.push(F[k]>=0?`<b>${esc(nm(k,F[k]))}</b>`:`<span>${ALL[k]}</span>`)});
+  const g=exGroups();
+  $('f-summary').innerHTML='Filter aktif: '+p.join(' · ')+(g.length?` · <span class="ex">tanpa ${esc(g.join(', '))}</span>`:'');
+}
+function renderExcl(){
+  const base=filt('excl'),cnt=countBy(base,'sub'),q=($('ex-q').value||'').trim().toLowerCase();
+  let items=[...cnt.entries()].filter(([k])=>k!==DB.SUB_TT);
+  [...ST.EX].forEach(k=>{if(!cnt.has(k))items.push([k,0])});
+  items.sort((x,y)=>(ST.EX.has(y[0])-ST.EX.has(x[0]))||(y[1]-x[1]));
+  if(q)items=items.filter(([k])=>DB.dict.sub[k].toLowerCase().includes(q));
+  const shown=items.slice(0,150);
+  $('ex-list').innerHTML=shown.map(([k,c])=>`<label><input type="checkbox" data-sub="${k}"${ST.EX.has(k)?' checked':''}><span title="${esc(nice(DB.dict.sub[k]))}">${esc(nice(DB.dict.sub[k]))}</span><em>${f0(c)}</em></label>`).join('')+(items.length>shown.length?`<p class="note" style="grid-column:1/-1">Menampilkan 150 dari ${f0(items.length)}; ketik untuk mencari.</p>`:'')+(items.length?'':'<p class="note">Tidak ada sub-komponen yang cocok.</p>');
+  $('ex-list').querySelectorAll('input').forEach(b=>b.addEventListener('change',()=>{const k=+b.dataset.sub;if(b.checked)ST.EX.add(k);else ST.EX.delete(k);renderAll()}));
+  const pre=presetSubs();$('ex-preset').classList.toggle('on',pre.length>0&&pre.every(k=>ST.EX.has(k)));
+}
+
+/* ================= KPI & insights ================= */
+function kpis(a){
+  const o=group(a.length?a:[],'site').reduce((t,x)=>{t.n+=x.n;t.dt+=x.dt;t.nv+=x.nv;t.lg+=x.lg;t.rb+=x.rb;t.rp+=x.rp;x.u.forEach(u=>t.u.add(u));x.um.forEach(u=>t.um.add(u));return t},{n:0,dt:0,nv:0,lg:0,rb:0,rp:0,u:new Set(),um:new Set()});
+  const T=[['B/D',f0(o.n),''],['Downtime',f0(o.dt)+' jam',''],['Unit',f0(o.u.size),''],['B/D per unit-bulan',f1(rate(o)),''],['Jam per B/D',f1(mttr(o)),''],[`Downtime dari B/D >${CFG.LONG_BD_HOURS} jam`,pct(o.lg,o.dt),''],[`Repeat ≤${CFG.REPEAT_DAYS} hari`,pct(o.rp,o.rb),f0(o.rp)+' B/D']];
+  $('kpis').innerHTML=T.map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1]}</div>${x[2]?`<div class="s">${x[2]}</div>`:''}</div>`).join('');
+  return o;
+}
+function insights(a,tot){
+  const ul=$('ins');
+  if(!a.length){ul.innerHTML='<li>Tidak ada B/D untuk kombinasi filter dan periode ini.</li>';return}
+  const gc=group(a,'comp').sort((x,y)=>y.n-x.n),gs=group(a,'cs').sort((x,y)=>y.n-x.n),gd=[...gs].sort((x,y)=>y.dt-x.dt);
+  const L=[];
+  if(ST.F.comp<0){let c=0,k=0;for(const o of gc){if((c+o.n)/tot.n>0.8)break;c+=o.n;k++}L.push(`Vital few: <b>${f0(k)} dari ${f0(gc.length)}</b> major component = ${pct(c,tot.n)} B/D. Teratas <b>${esc(title(DB.dict.comp[gc[0].k]))}</b> (${pct(gc[0].n,tot.n)}).`)}
+  L.push(`Sub-komponen paling sering: <b>${esc(subName(gs[0].k))}</b> (${esc(title(DB.dict.comp[Math.floor(gs[0].k/CSK)]))}), ${f0(gs[0].n)} B/D (${pct(gs[0].n,tot.n)}).`);
+  if(tot.dt>0)L.push(`Downtime terbesar: <b>${esc(subName(gd[0].k))}</b>, ${f0(gd[0].dt)} jam (${pct(gd[0].dt,tot.dt)} downtime), ${f1(mttr(gd[0]))} jam per B/D.`);
+  let c=0,k=0;for(const o of gs){c+=o.n;k++;if(c/tot.n>=0.8)break}
+  L.push(`${f0(k)} dari ${f0(gs.length)} sub-komponen membentuk 80% B/D.`);
+  ul.innerHTML=L.map(x=>`<li>${x}</li>`).join('');
+}
+
+/* ================= charts ================= */
+function chartW(el,min){return Math.max(min,Math.min(1600,Math.round(el.clientWidth||1200)))}
+function wrapTxt(s,max,lines){const w=String(s).split(/\s+/);const out=[];let cur='';for(const x of w){if(!cur)cur=x;else if((cur+' '+x).length<=max)cur+=' '+x;else{out.push(cur);cur=x}}if(cur)out.push(cur);let r=out.map(l=>l.length>max?l.slice(0,max-1)+'…':l);if(r.length>lines){r=r.slice(0,lines);r[lines-1]=r[lines-1].replace(/…$/,'').slice(0,max-1)+'…'}return r}
+function paretoSVG(el,c){
+  const bars=c.bars,total=c.total,isN=c.metric==='n';
+  if(!bars.length||!total){el.innerHTML='<p class="note" style="padding:24px 0">Tidak ada data untuk filter ini.</p>';return}
+  const W=c.W||1200,NL=c.tag?3:2,H=c.tag?440:404,ml=64,mr=60,mt=30,mb=c.tag?108:76,iw=W-ml-mr,ih=H-mt-mb;
+  const vmax=niceMax(Math.max(...bars.map(b=>b.v))*1.1);
+  const slot=iw/bars.length,bw=Math.min(68,slot*.54),maxc=Math.max(6,Math.floor(slot/7.6));
+  let cum0=0;const mk=bars.map(b=>{cum0+=b.v;return mt+ih*(1-Math.min(1,cum0/total))});
+  let g='';
+  for(let t=0;t<=4;t++){const y=mt+ih-ih*t/4;g+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--${t?'grid':'axis'})"/><text x="${ml-10}" y="${y+4}" text-anchor="end">${f0(vmax*t/4)}</text><text x="${W-mr+10}" y="${y+4}">${t*25}%</text>`}
+  let cum=0;const pts=[];
+  bars.forEach((b,i)=>{
+    const cx=ml+slot*(i+.5);cum+=b.v;b.cum=cum/total;pts.push([cx,mt+ih*(1-Math.min(1,b.cum))]);
+    const vital=!b.others&&b.cum<=0.8+1e-9,h=ih*b.v/vmax,x=cx-bw/2,y=mt+ih-h,r=Math.min(5,bw/2,h);
+    const dim=c.sel!=null&&c.sel>=0&&b.k!==c.sel?' dim':'';
+    if(h>0)g+=`<path class="bar${dim}" d="M${x},${mt+ih} V${y+r} Q${x},${y} ${x+r},${y} H${x+bw-r} Q${x+bw},${y} ${x+bw},${y+r} V${mt+ih} Z" fill="var(${vital?'--teal':'--trivial'})"/>`;
+    let ly=y-8;if(ly>mk[i]-8&&ly<mk[i]+18)ly=mk[i]-11;
+    g+=`<text class="val" x="${cx}" y="${ly.toFixed(1)}" text-anchor="middle">${f0(b.v)}</text>`;
+    const ls=wrapTxt(b.name,maxc,NL);ls.forEach((l,j)=>{g+=`<text class="lbl" x="${cx}" y="${mt+ih+20+j*14}" text-anchor="middle">${esc(l)}</text>`});
+    if(c.tag&&b.tag)g+=`<text x="${cx}" y="${mt+ih+22+ls.length*14}" text-anchor="middle" style="font-size:10.5px">${esc(b.tag)}</text>`;
+  });
+  const y80=mt+ih*0.2;
+  g+=`<line x1="${ml}" x2="${W-mr}" y1="${y80}" y2="${y80}" stroke="var(--ref)" stroke-width="1.6" stroke-dasharray="6 5"/><text class="ref-t" x="${W-mr-4}" y="${y80-7}" text-anchor="end">80%</text>`;
+  g+=`<polyline points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="var(--cum)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  pts.forEach(p=>{g+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.5" fill="var(--surface)" stroke="var(--cum)" stroke-width="2"/>`});
+  bars.forEach((b,i)=>{
+    const o=b.o;let t=`<div class='h'>${esc(b.full||b.name)}</div>`+tr(isN?'B/D':'Downtime',isN?f0(b.v):f0(b.v)+' jam');
+    if(o)t+=tr(isN?'Downtime':'B/D',isN?f0(o.dt)+' jam':f0(o.n))+tr('Jam per B/D',f1(mttr(o)))+tr('Unit',f0(o.u.size));
+    t+=tr('Porsi',pct(b.v,total))+tr('Kumulatif',f1(b.cum*100)+'%');
+    g+=`<rect class="hit" x="${(ml+slot*i).toFixed(1)}" y="${mt}" width="${slot.toFixed(1)}" height="${ih+44}" data-tip="${esc(t)}"${b.k!=null&&c.click?` data-k="${b.k}" style="cursor:pointer"`:''}/>`;
+  });
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.aria)}">${g}</svg>`;
+  bindTips(el);
+  if(c.click)el.querySelectorAll('.hit[data-k]').forEach(r=>r.addEventListener('click',()=>c.click(+r.dataset.k)));
+}
+function paretoComp(){
+  const a=filt('comp'),isN=ST.mC==='n',val=o=>isN?o.n:o.dt;
+  const g=group(a,'comp').sort((x,y)=>val(y)-val(x)),total=g.reduce((s,o)=>s+val(o),0);
+  const W=chartW($('pc-chart'),760),NB=W<900?7:10;
+  let topG=g.slice(0,NB);const selO=ST.F.comp>=0&&!topG.find(o=>o.k===ST.F.comp)?g.find(o=>o.k===ST.F.comp):null;if(selO)topG.push(selO);
+  const rest=g.filter(o=>!topG.includes(o));
+  const bars=topG.map(o=>({k:o.k,name:DB.dict.comp[o.k],v:val(o),o}));
+  if(rest.length)bars.push({k:null,others:true,name:`Lainnya (${rest.length})`,v:rest.reduce((s,o)=>s+val(o),0)});
+  paretoSVG($('pc-chart'),{W,bars,total,metric:ST.mC,sel:ST.F.comp,aria:'Pareto major component',click:k=>{ST.F.comp=ST.F.comp===k?-1:k;renderAll()}});
+  $('pc-sub').textContent=(isN?'Berdasarkan jumlah B/D':'Berdasarkan downtime (jam)')+(ST.F.comp>=0?` · ${title(DB.dict.comp[ST.F.comp])} dipilih; klik lagi untuk membatalkan.`:' · Klik batang untuk menyaring sub-komponen di bawah.');
+}
+function paretoSub(a){
+  const isN=ST.mS==='n',val=o=>isN?o.n:o.dt;
+  const g=group(a,'cs').sort((x,y)=>val(y)-val(x)),total=g.reduce((s,o)=>s+val(o),0);
+  const W=chartW($('ps-chart'),760),NB=W<900?8:12,topG=g.slice(0,NB),rest=g.slice(NB),allC=ST.F.comp<0;
+  const bars=topG.map(o=>({k:o.k,name:dispFix(DB.dict.sub[o.k%CSK]),full:`${nice(DB.dict.sub[o.k%CSK])} · ${title(DB.dict.comp[Math.floor(o.k/CSK)])}`,v:val(o),o,tag:allC?shortComp(Math.floor(o.k/CSK)):''}));
+  paretoSVG($('ps-chart'),{W,bars,total,metric:ST.mS,tag:allC,aria:'Pareto sub-komponen'});
+  $('ps-sub').textContent=(allC?'Semua major component. Klik salah satu batang di atas untuk menyaring.':`Major component: ${title(DB.dict.comp[ST.F.comp])}. Klik batangnya lagi di atas untuk kembali ke semua komponen.`)+(isN?' Urut berdasarkan jumlah B/D.':' Urut berdasarkan downtime.');
+  const rv=rest.reduce((s,o)=>s+val(o),0);
+  $('ps-note').textContent=rest.length?`${f0(rest.length)} sub-komponen lainnya (${f0(rv)} ${isN?'B/D':'jam'}, ${pct(rv,total)}) tidak digambar supaya batang utama tetap terbaca. Persentase kumulatif tetap dihitung dari total.`:'';
+  let cum=0;
+  let h=`<table><thead><tr><th>#</th><th>Sub-komponen</th><th class="n">B/D</th><th class="n">% B/D</th><th class="n">Downtime (jam)</th><th class="n">% downtime</th><th class="n">Jam/B/D</th><th class="n">Unit</th><th class="n">Repeat</th></tr></thead><tbody>`;
+  const T=a.length,TD=g.reduce((s,o)=>s+o.dt,0);
+  g.slice(0,30).forEach((o,i)=>{cum+=val(o);h+=`<tr><td class="n muted">${i+1}</td><td>${esc(subName(o.k))}<span class="sub">${esc(title(DB.dict.comp[Math.floor(o.k/CSK)]))}</span></td><td class="n">${f0(o.n)}</td><td class="n">${pct(o.n,T)}</td><td class="n">${f0(o.dt)}</td><td class="n">${pct(o.dt,TD)}</td><td class="n">${f1(mttr(o))}</td><td class="n">${f0(o.u.size)}</td><td class="n">${pct(o.rp,o.rb)}</td></tr>`});
+  $('ps-table').innerHTML=g.length?h+'</tbody></table>':'<p class="note" style="padding:10px">Tidak ada data.</p>';
+}
+function trend(a){
+  const {from,to}=ST.range,span=to-from+1,daily=span<=45;
+  const keys=[];if(daily){for(let d=from;d<=to;d++)keys.push(d)}else{for(let m=ymOf(from);m<=ymOf(to);m++)keys.push(m)}
+  const pos=new Map(keys.map((k,i)=>[k,i])),K=keys.length,n=new Array(K).fill(0),dt=new Array(K).fill(0),um=keys.map(()=>new Set());
+  for(const i of a){const j=pos.get(daily?DB.day[i]:DB.ym[i]);if(j===undefined)continue;n[j]++;const d=DB.dt[i];if(d===d)dt[j]+=d;if(DB.unit[i]!==DB.UNK)um[j].add(DB.unit[i])}
+  const cross=!daily&&Math.floor(keys[0]/12)!==Math.floor(keys[K-1]/12);
+  const lab=k=>daily?String(new Date(k*864e5).getUTCDate()):MON[k%12]+(cross?` ’${String(Math.floor(k/12)).slice(2)}`:'');
+  const head=k=>daily?fd(k):`${MON[k%12]} ${Math.floor(k/12)}`;
+  const W=chartW($('tr-chart'),520),H=260,ml=50,mr=12,mt=16,mb=34,iw=W-ml-mr,ih=H-mt-mb,max=niceMax(Math.max(...n,1)*1.08),slot=iw/K,bw=Math.min(34,slot*.6),step=Math.ceil(K/14);
+  let g='';
+  for(let t=0;t<=4;t++){const y=mt+ih-ih*t/4;g+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--${t?'grid':'axis'})"/><text x="${ml-8}" y="${y+4}" text-anchor="end">${f0(max*t/4)}</text>`}
+  keys.forEach((k,i)=>{const cx=ml+slot*(i+.5),h=ih*n[i]/max,y=mt+ih-h,r=Math.min(4,bw/2,h);
+    if(h>0)g+=`<path d="M${cx-bw/2},${mt+ih} V${y+r} Q${cx-bw/2},${y} ${cx-bw/2+r},${y} H${cx+bw/2-r} Q${cx+bw/2},${y} ${cx+bw/2},${y+r} V${mt+ih} Z" fill="var(--teal)"/>`;
+    if(i%step===0)g+=`<text x="${cx}" y="${H-12}" text-anchor="middle">${lab(k)}</text>`;
+    const t=`<div class='h'>${head(k)}</div>`+tr('B/D',f0(n[i]))+tr('Unit',f0(um[i].size))+tr('B/D per unit',um[i].size?f1(n[i]/um[i].size):'–')+tr('Downtime',f0(dt[i])+' jam');
+    g+=`<rect class="hit" x="${(ml+slot*i).toFixed(1)}" y="${mt}" width="${slot.toFixed(1)}" height="${ih}" data-tip="${esc(t)}"/>`});
+  const el=$('tr-chart');el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tren B/D">${g}</svg>`;bindTips(el);
+  const lastX=new Date(to*864e5),endOfMonth=new Date(Date.UTC(lastX.getUTCFullYear(),lastX.getUTCMonth()+1,0)).getUTCDate();
+  $('tr-sub').textContent=daily?`Harian, ${fd(from)} – ${fd(to)}`:`Bulanan, ${fd(from)} – ${fd(to)}`+(lastX.getUTCDate()<endOfMonth?` (bulan terakhir s.d. tanggal ${lastX.getUTCDate()})`:'');
+}
+
+/* ================= tables ================= */
+function siteTable(){
+  const a=filt('site'),g=group(a,'site',{x:'comp'}).sort((x,y)=>siteRank(DB.dict.site[x.k])-siteRank(DB.dict.site[y.k])||y.n-x.n);
+  const mx=Math.max(...g.map(rate).filter(isFinite),1);
+  let h=`<table><thead><tr><th>Site</th><th class="n">Unit</th><th class="n">B/D</th><th class="n">B/D per unit-bulan</th><th class="n">Downtime (jam)</th><th class="n">Jam/B/D</th><th class="n">Repeat</th><th>Komponen teratas</th></tr></thead><tbody>`;
+  g.forEach(o=>{const [tc,tn]=top(o.x);const r=rate(o);
+    h+=`<tr class="${o.k===ST.F.site?'on':''}"><td><button type="button" class="lnk" data-site="${o.k}">${esc(DB.dict.site[o.k])}</button></td><td class="n">${f0(o.u.size)}</td><td class="n">${f0(o.n)}</td><td class="n"><span class="cellbar"><i style="width:${isFinite(r)?Math.max(2,r/mx*60).toFixed(0):0}px"></i>${f1(r)}</span></td><td class="n">${f0(o.dt)}</td><td class="n">${f1(mttr(o))}</td><td class="n">${pct(o.rp,o.rb)}</td><td style="white-space:nowrap">${tc!=null?esc(title(DB.dict.comp[tc])):'–'} <span class="muted">${pct(tn,o.n)}</span></td></tr>`});
+  const el=$('site-tbl');el.innerHTML=g.length?h+'</tbody></table>':'<p class="note" style="padding:10px">Tidak ada data.</p>';
+  el.querySelectorAll('[data-site]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.site;ST.F.site=ST.F.site===v?-1:v;renderAll()}));
+}
+function models(){
+  const a=filt('model'),g=group(a,'model',{x:'comp',y:'cs'}).sort((x,y)=>y.n-x.n);
+  let rows=ST.allModels?g:g.slice(0,12);if(ST.F.model>=0&&!rows.find(r=>r.k===ST.F.model)){const s=g.find(r=>r.k===ST.F.model);if(s)rows=rows.concat([s])}
+  let h=`<table><thead><tr><th>Model</th><th class="n">Unit</th><th class="n">B/D</th><th class="n">B/D per unit-bulan</th><th class="n">Downtime (jam)</th><th class="n">Jam per unit</th><th class="n">Jam/B/D</th><th class="n">Repeat</th><th>Komponen teratas</th><th>Sub-komponen teratas</th></tr></thead><tbody>`;
+  rows.forEach(r=>{const [tc,tcn]=top(r.x),[ts,tsn]=top(r.y);
+    h+=`<tr class="${r.k===ST.F.model?'on':''}"><td style="white-space:nowrap"><button type="button" class="lnk" data-model="${r.k}">${esc(DB.dict.model[r.k])}</button>${r.u.size<3?'<span class="muted"> *</span>':''}</td><td class="n">${f0(r.u.size)}</td><td class="n">${f0(r.n)}</td><td class="n">${f1(rate(r))}</td><td class="n">${f0(r.dt)}</td><td class="n">${r.u.size?f0(r.dt/r.u.size):'–'}</td><td class="n">${f1(mttr(r))}</td><td class="n">${pct(r.rp,r.rb)}</td><td>${esc(title(DB.dict.comp[tc]))} <span class="muted">${pct(tcn,r.n)}</span></td><td>${esc(subName(ts))} <span class="muted">${f0(tsn)}</span></td></tr>`});
+  const el=$('model-tbl');el.innerHTML=g.length?h+'</tbody></table>'+(g.some(r=>r.u.size<3)?'<p class="note" style="padding:6px 12px">* kurang dari 3 unit, rate belum representatif.</p>':''):'<p class="note" style="padding:10px">Tidak ada data.</p>';
+  el.querySelectorAll('[data-model]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.model;ST.F.model=ST.F.model===v?-1:v;renderAll()}));
+  const more=$('model-more');if(g.length>12){more.hidden=false;more.textContent=ST.allModels?'Tampilkan 12 model teratas':`Tampilkan semua ${f0(g.length)} model`}else more.hidden=true;
+}
+function heat(rows,cols,colName,rowName,getMap,selK,tipPrefix){
+  const steps=['--h0','--h1','--h2','--h3','--h4','--h5','--h6'];
+  let h=`<table><thead><tr><th>${rowName}</th><th class="n">B/D</th>${cols.map(k=>`<th class="n">${esc(colName(k))}</th>`).join('')}<th class="n">Lainnya</th></tr></thead><tbody>`;
+  rows.forEach(r=>{let rest=r.n;const mp=getMap(r);
+    h+=`<tr class="${r.k===selK?'on':''}"><td style="white-space:nowrap">${esc(r.label)}</td><td class="n">${f0(r.n)}</td>`;
+    cols.forEach(k=>{const v=mp.get(k)||0;rest-=v;const q=v/r.n,b=Math.min(6,Math.floor(Math.sqrt(q/0.6)*7));
+      h+=`<td class="c" style="background:var(${v?steps[b]:'--surface'});color:${b>=4&&v?'#fff':v?'var(--ink)':'var(--muted)'}" data-tip="${esc(`<div class='h'>${tipPrefix}${r.label} · ${colName(k)}</div>`+tr('B/D',f0(v))+tr('Porsi',f1(q*100)+'%'))}">${v?f0(q*100)+'%':'·'}</td>`});
+    h+=`<td class="c" style="color:var(--ink-2)">${f0(rest/r.n*100)}%</td></tr>`});
+  return h+'</tbody></table>';
+}
+function genPanel(){
+  const card=$('gen-card'),base=filt('gen').filter(i=>DB.gen[i]>0);
+  if(!base.length){card.hidden=true;return}
+  card.hidden=false;
+  const bySub=ST.F.comp>=0,g=group(base,'gen',{x:'comp',y:'cs'}).sort((x,y)=>x.k-y.k),UN=DB.GEN_UN;
+  const mx=Math.max(...g.map(rate).filter(isFinite),1);
+  let h=`<table><thead><tr><th>Generasi</th><th class="n">Unit</th><th class="n">B/D</th><th class="n">B/D per unit-bulan</th><th class="n">Bulan tercatat per unit</th><th class="n">Downtime (jam)</th><th class="n">Jam per unit</th><th class="n">Jam/B/D</th><th class="n">Repeat</th><th>Komponen teratas</th><th>Sub-komponen teratas</th></tr></thead><tbody>`;
+  g.forEach(r=>{const [tc,tcn]=top(r.x),[ts,tsn]=top(r.y),rt=rate(r);
+    h+=`<tr class="${r.k===ST.F.gen?'on':''}"><td style="white-space:nowrap"><button type="button" class="lnk" data-gen="${r.k}">${esc(DB.dict.gen[r.k])}</button>${r.u.size<3?'<span class="muted"> *</span>':''}</td><td class="n">${f0(r.u.size)}</td><td class="n">${f0(r.n)}</td><td class="n"><span class="cellbar"><i style="width:${isFinite(rt)?Math.max(2,rt/mx*60).toFixed(0):0}px"></i>${f1(rt)}</span></td><td class="n">${r.u.size?f1(r.um.size/r.u.size):'–'}</td><td class="n">${f0(r.dt)}</td><td class="n">${r.u.size?f0(r.dt/r.u.size):'–'}</td><td class="n">${f1(mttr(r))}</td><td class="n">${pct(r.rp,r.rb)}</td><td>${esc(title(DB.dict.comp[tc]))} <span class="muted">${pct(tcn,r.n)}</span></td><td>${esc(subName(ts))} <span class="muted">${f0(tsn)}</span></td></tr>`});
+  const el=$('gen-tbl');el.innerHTML=h+'</tbody></table>'+(g.some(r=>r.u.size<3)?'<p class="note" style="padding:6px 12px">* kurang dari 3 unit, rate belum representatif.</p>':'')+(g.some(r=>r.k===UN)?`<p class="note" style="padding:6px 12px">"Belum dipetakan" = unit RTH100 yang belum ada di daftar generasi (config.js).</p>`:'');
+  el.querySelectorAll('[data-gen]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.gen;ST.F.gen=ST.F.gen===v?-1:v;renderAll()}));
+  const ok=g.filter(r=>r.u.size>=3&&r.k!==UN),L=[];
+  if(ok.length>=2){const s=[...ok].sort((x,y)=>rate(y)-rate(x)),hi=s[0],lo=s[s.length-1];
+    L.push(`Rate tertinggi: <b>${esc(DB.dict.gen[hi.k])}</b> (${f1(rate(hi))} B/D per unit-bulan, ${f0(hi.u.size)} unit); terendah: <b>${esc(DB.dict.gen[lo.k])}</b> (${f1(rate(lo))}, ${f0(lo.u.size)} unit).`);
+    const sm=[...ok].sort((x,y)=>(mttr(y)||0)-(mttr(x)||0))[0];if(sm&&isFinite(mttr(sm)))L.push(`Jam per B/D terpanjang: <b>${esc(DB.dict.gen[sm.k])}</b> (${f1(mttr(sm))} jam per B/D).`)}
+  const tsm=new Map();g.filter(r=>r.k!==UN).forEach(r=>{const s=top(r.y)[0];if(!tsm.has(s))tsm.set(s,[]);tsm.get(s).push(DB.dict.gen[r.k])});
+  if(tsm.size>1)L.push(`Sub-komponen teratas per generasi: ${[...tsm.entries()].sort((x,y)=>y[1].length-x[1].length).map(([s,gs])=>`<b>${esc(subName(s))}</b> (${esc(gs.join(', '))})`).join('; ')}.`);
+  else if(tsm.size===1&&g.length>1)L.push(`Sub-komponen teratas sama di semua generasi: <b>${esc(subName([...tsm.keys()][0]))}</b>.`);
+  $('gen-ins').innerHTML=L.map(x=>`<li>${x}</li>`).join('');
+  const dim=bySub?'cs':'comp',cols=group(base,dim).sort((x,y)=>y.n-x.n).slice(0,7).map(o=>o.k),colName=k=>bySub?subName(k):title(DB.dict.comp[k]);
+  $('gen-prof-h').textContent=bySub?`Profil sub-komponen per generasi · ${title(DB.dict.comp[ST.F.comp])}`:'Profil komponen per generasi';
+  const pe=$('gen-prof');pe.innerHTML=heat(g.map(r=>Object.assign(r,{label:DB.dict.gen[r.k]})),cols,colName,'Generasi',r=>bySub?r.y:r.x,ST.F.gen,'RTH100 ');bindTips(pe);
+}
+function profile(){
+  const base=filt('model'),bySub=ST.F.comp>=0,dim=bySub?'cs':'comp';
+  const cols=group(base,dim).sort((x,y)=>y.n-x.n).slice(0,7).map(o=>o.k);
+  const gm=group(base,'model',{x:dim}).sort((x,y)=>y.n-x.n);let rows=gm.slice(0,10);
+  if(ST.F.model>=0&&!rows.find(r=>r.k===ST.F.model)){const s=gm.find(r=>r.k===ST.F.model);if(s)rows=rows.concat([s])}
+  $('prof-h').textContent=bySub?`Profil sub-komponen per model · ${title(DB.dict.comp[ST.F.comp])}`:'Profil komponen per model';
+  const colName=k=>bySub?subName(k):title(DB.dict.comp[k]);
+  const el=$('prof-tbl');el.innerHTML=rows.length?heat(rows.map(r=>Object.assign(r,{label:DB.dict.model[r.k]})),cols,colName,'Model',r=>r.x,ST.F.model,''):'<p class="note" style="padding:10px">Tidak ada data.</p>';bindTips(el);
+}
+function bad(a){
+  const g=group(a,'unit',{x:'cs'}).filter(o=>o.k!==DB.UNK).sort((x,y)=>ST.mB==='n'?y.n-x.n:y.dt-x.dt);
+  let h=`<table><thead><tr><th>Unit</th><th>Model</th><th>Site</th><th class="n">B/D</th><th class="n">Downtime (jam)</th><th class="n">Repeat</th><th>Sub-komponen terbanyak</th></tr></thead><tbody>`;
+  g.slice(0,10).forEach(o=>{const [ts,tn]=top(o.x);
+    h+=`<tr><td class="code">${esc(DB.dict.unit[o.k])}${o.gen>0?`<span class="tag">${esc(DB.dict.gen[o.gen])}</span>`:''}</td><td>${esc(DB.dict.model[o.model])}</td><td>${esc(DB.dict.site[o.site])}</td><td class="n">${f0(o.n)}</td><td class="n">${f0(o.dt)}</td><td class="n">${f0(o.rp)}</td><td>${esc(subName(ts))} <span class="muted">(${f0(tn)} B/D, ${esc(title(DB.dict.comp[Math.floor(ts/CSK)]))})</span></td></tr>`});
+  $('bad-tbl').innerHTML=g.length?h+'</tbody></table>':'<p class="note" style="padding:10px">Tidak ada data.</p>';
+}
+function dataNotes(){
+  const s=DB.stats,L=[];
+  L.push(`Sumber: <b>${esc(DB.src)}</b>, dimuat ${DB.loadedAt.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}. Baris judul kolom: baris ${s.header}.`);
+  L.push(`<b>${f0(DB.n)}</b> baris B/D dianalisis (${fd(DB.minDay)} – ${fd(DB.maxDay)}). ${f0(s.blank)} baris kosong dilewati${s.badDate?`; <b>${f0(s.badDate)}</b> baris dilewati karena tanggal B/D tidak terbaca`:''}.`);
+  if(s.approx)L.push(`${f0(s.approx)} baris tanpa tanggal valid memakai tanggal 1 dari kolom bulan/tahun.`);
+  L.push(`${f0(s.noDur)} B/D (${pct(s.noDur,DB.n)}) tidak punya durasi valid (SPK belum close atau jam kosong); downtime periode terkait lebih rendah dari kondisi sebenarnya.`);
+  if(s.future)L.push(`${f0(s.future)} baris bertanggal setelah hari ini; tidak masuk YTD/MTD/WTD (bisa dilihat lewat Custom).`);
+  L.push(`Format tanggal terbaca sebagai ${s.order==='MDY'?'bulan/tanggal/tahun':'tanggal/bulan/tahun'}. Nomor unit diseragamkan huruf besar.`);
+  if(s.unmapped.size){const u=[...s.unmapped].sort();L.push(`<b>${f0(u.length)} unit RTH100 belum punya generasi</b>: ${esc(u.slice(0,15).join(', '))}${u.length>15?', …':''}. Tambahkan ke RTH100_GEN di config.js.`)}
+  $('dq').innerHTML=L.map(x=>`<li>${x}</li>`).join('');
+  $('dq-sub').textContent=`Data terakhir ${fd(DB.asOf)}`;
+  $('ft-src').textContent=`Sumber: ${DB.src} · dimuat ${DB.loadedAt.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`;
+  document.querySelectorAll('.cfg-rep').forEach(e=>e.textContent=CFG.REPEAT_DAYS);
+}
+function periodLine(a){
+  const {from,to}=ST.range,lbl={ytd:'YTD',mtd:'MTD',wtd:'WTD',custom:'Custom'}[ST.period];
+  $('period-line').innerHTML=`<span>Periode <b>${lbl}</b> · ${fd(from)} – ${fd(to)}</span><span>${f0(a.length)} B/D sesuai filter</span><span>Data terakhir ${fd(DB.asOf)}</span>`;
+}
+
+/* ================= render ================= */
+function renderAll(){
+  if(!DB)return;
+  computePeriod();fillSelects();summary();renderExcl();
+  const a=filt(null),tot=kpis(a);periodLine(a);insights(a,tot);
+  paretoComp();paretoSub(a);trend(a);siteTable();models();genPanel();profile();bad(a);
+}
+function setStatus(kind,txt,titleTxt){const s=$('status');s.className='status'+(kind?' '+kind:'');$('status-txt').textContent=txt;s.title=titleTxt||''}
+function showState(which,h,t){$('st-load').hidden=which!=='load';$('st-err').hidden=which!=='err';$('app').hidden=which!=='app';if(which==='err'){$('st-err-h').textContent=h;$('st-err-txt').innerHTML=t}}
+function remember(){if(!DB)return null;const n={};KEYS.forEach(k=>n[k]=ST.F[k]>=0?DB.dict[k][ST.F[k]]:null);return {F:n,EX:[...ST.EX].map(i=>DB.dict.sub[i])}}
+function restore(m){if(!m)return;KEYS.forEach(k=>{const v=m.F[k];ST.F[k]=v==null?-1:DB.dict[k].indexOf(v)});ST.EX=new Set(m.EX.map(s=>DB.dict.sub.indexOf(s)).filter(i=>i>=0))}
+function accept(db){
+  const mem=remember();DB=db;restore(mem);
+  setStatus('ok',`${f0(db.n)} baris`,`Sumber: ${db.src} · dimuat ${db.loadedAt.toLocaleString('id-ID')} · data terakhir ${fd(db.asOf)}`);
+  showState('app');dataNotes();renderAll();
+}
+const tick=()=>new Promise(r=>setTimeout(r,30));
+let busy=false;
+async function loadSheet(isRefresh){
+  const url=String(CFG.SHEET_CSV_URL||'').trim();
+  if(!url){if(!DB){setStatus('err','Belum ada sumber');showState('err','Link Google Sheet belum diisi','Isi <b>SHEET_CSV_URL</b> di file <code>config.js</code> dengan link CSV dari menu Google Sheet &gt; File &gt; Bagikan &gt; Publikasikan ke web. Untuk mencoba, buka file CSV atau Excel dari komputer Anda.')}return}
+  if(busy)return;busy=true;$('btn-refresh').classList.add('spin');
+  setStatus('',isRefresh&&DB?'Memperbarui…':'Memuat…');if(!DB)showState('load');
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'_t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error(`Server membalas HTTP ${res.status}.`);
+    const text=await res.text();
+    if(/^\s*<(!doctype|html)/i.test(text))throw new Error('Link tidak mengembalikan CSV. Pastikan sheet sudah dipublikasikan ke web dengan format CSV.');
+    if(!DB)$('st-load-txt').textContent='Mengolah data…';await tick();
+    const p=Papa.parse(text,{skipEmptyLines:'greedy'});
+    accept(ingest(p.data,'Google Sheet'));
+  }catch(e){
+    const msg=e instanceof TypeError?'Browser tidak bisa mengambil link ini. Pastikan sheet sudah <b>Publikasikan ke web</b> dengan format CSV dan link diawali <code>https://docs.google.com/spreadsheets/d/e/…/pub?…output=csv</code>.':esc(e.message||String(e));
+    if(DB){setStatus('err','Gagal memperbarui',e.message||'');}
+    else{setStatus('err','Gagal memuat');showState('err','Data belum bisa dimuat',msg)}
+  }finally{busy=false;$('btn-refresh').classList.remove('spin')}
+}
+function loadScript(urls){return new Promise((ok,fail)=>{const tryN=i=>{if(i>=urls.length)return fail(new Error('Library pembaca Excel tidak bisa dimuat. Simpan file sebagai CSV lalu coba lagi.'));const s=document.createElement('script');s.src=urls[i];s.onload=ok;s.onerror=()=>{s.remove();tryN(i+1)};document.head.appendChild(s)};tryN(0)})}
+async function loadFile(f){
+  if(!f)return;setStatus('','Membaca file…');if(!DB)showState('load');$('st-load-txt').textContent='Membaca '+f.name+'…';await tick();
+  try{
+    let rows;
+    if(/\.xlsx?$/i.test(f.name)){
+      if(!window.XLSX)await loadScript(['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js']);
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});let last=null;
+      for(const n of wb.SheetNames){const r=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null,blankrows:false});try{accept(ingest(r,f.name+' · '+n));return}catch(e){last=e}}
+      throw last||new Error('Tidak ada sheet yang cocok.');
+    }else{rows=Papa.parse(await f.text(),{skipEmptyLines:'greedy'}).data;accept(ingest(rows,f.name))}
+  }catch(e){if(DB)setStatus('err','Gagal membaca file',e.message);else{setStatus('err','Gagal membaca file');showState('err','File belum bisa dibaca',esc(e.message||String(e)))}}
+}
+
+/* ================= events ================= */
+KEYS.forEach(k=>sel[k].addEventListener('change',()=>{ST.F[k]=+sel[k].value;renderAll()}));
+$('btn-reset').addEventListener('click',()=>{KEYS.forEach(k=>ST.F[k]=-1);ST.allModels=false;renderAll()});
+$('model-more').addEventListener('click',()=>{ST.allModels=!ST.allModels;models()});
+$('ex-preset').addEventListener('click',()=>{const p=presetSubs(),on=p.length&&p.every(k=>ST.EX.has(k));p.forEach(k=>on?ST.EX.delete(k):ST.EX.add(k));renderAll()});
+$('ex-clear').addEventListener('click',()=>{ST.EX.clear();renderAll()});
+$('ex-toggle').addEventListener('click',()=>{const pn=$('ex-panel'),o=pn.hidden;pn.hidden=!o;$('ex-toggle').setAttribute('aria-expanded',String(o));if(o)$('ex-q').focus()});
+$('ex-q').addEventListener('input',renderExcl);
+$('btn-compact').addEventListener('click',()=>{const fb=$('fbar'),c=!fb.classList.contains('compact');fb.classList.toggle('compact',c);$('btn-compact').textContent=c?'Tampilkan filter':'Sembunyikan filter';$('btn-compact').setAttribute('aria-expanded',String(!c))});
+document.querySelectorAll('.period button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.period button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));ST.period=b.dataset.p;if(ST.period==='custom'&&ST.range&&ST.cFrom==null){ST.cFrom=ST.range.from;ST.cTo=ST.range.to}renderAll()}));
+const dIn=id=>{const v=$(id).value;if(!v)return null;const [y,m,d]=v.split('-').map(Number);return ymd(y,m,d)};
+$('d-from').addEventListener('change',()=>{const v=dIn('d-from');if(v===v&&v!=null){ST.cFrom=v;renderAll()}});
+$('d-to').addEventListener('change',()=>{const v=dIn('d-to');if(v===v&&v!=null){ST.cTo=v;renderAll()}});
+[['pc-seg',m=>{ST.mC=m;paretoComp()}],['ps-seg',m=>{ST.mS=m;paretoSub(filt(null))}],['bad-seg',m=>{ST.mB=m;bad(filt(null))}]].forEach(([id,fn])=>{const bs=$(id).querySelectorAll('button');bs.forEach(b=>b.addEventListener('click',()=>{bs.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));fn(b.dataset.m)}))});
+$('btn-refresh').addEventListener('click',()=>loadSheet(true));
+let rzT=null,lastW=innerWidth;addEventListener('resize',()=>{if(Math.abs(innerWidth-lastW)<40)return;clearTimeout(rzT);rzT=setTimeout(()=>{lastW=innerWidth;if(DB&&!$('app').hidden){paretoComp();const a=filt(null);paretoSub(a);trend(a)}},200)});
+$('btn-retry').addEventListener('click',()=>loadSheet(false));
+['btn-file','btn-file2'].forEach(id=>$(id).addEventListener('click',()=>$('file-in').click()));
+$('file-in').addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value=''});
+const MOON='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+const curTheme=()=>document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+const themeIcon=()=>{$('btn-theme').querySelector('svg').innerHTML=curTheme()==='dark'?SUN:MOON};
+$('btn-theme').addEventListener('click',()=>{const t=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('pareto-theme',t)}catch(e){}themeIcon()});
+themeIcon();
+if(typeof Papa==='undefined'){setStatus('err','Gagal memuat');showState('err','Komponen pembaca CSV tidak termuat','File <code>vendor/papaparse.min.js</code> tidak ditemukan. Pastikan folder <code>vendor</code> ikut diunggah ke repo.')}
+else{loadSheet(false);const m=+CFG.REFRESH_MINUTES;if(m>0)setInterval(()=>{if(!document.hidden)loadSheet(true)},m*60000)}
+window.__pareto={get DB(){return DB},ST,filt,group,renderAll,ingest};
+})();
+</script>
+</body>
+</html>
